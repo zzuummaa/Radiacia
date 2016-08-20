@@ -16,6 +16,8 @@ import android.widget.TextView;
 import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Client.ClientGame;
 import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Debug.Debug;
 
+import Radiacia.server.client.GameClient;
+
 public class MainActivity extends Activity {
     TextView clientStatusTV;
     TextView gamerInfoTV;
