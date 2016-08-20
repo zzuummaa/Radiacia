@@ -15,6 +15,8 @@ import java.io.InputStreamReader;
 public class Main_Server implements ServerCommand {
     //Включение и отключение лога дебага
     private static boolean debugEnabled = false;
+    //Включение вывода информации о выстреле
+    private static boolean shotInfoEnabled = true;
 
     private static ServerGame serverGame;
     private static Debug debug = new Debug("SERVER_MAIN");
