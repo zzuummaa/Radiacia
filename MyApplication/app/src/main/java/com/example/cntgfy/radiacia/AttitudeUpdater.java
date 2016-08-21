@@ -7,7 +7,8 @@ import com.example.cntgfy.radiacia.Determinant.Orientation.DeterminantOfOrientat
 import com.example.cntgfy.radiacia.Determinant.Orientation.DeterminantOfOrientationByStartAndroid;
 import com.example.cntgfy.radiacia.Determinant.Position.DeterminantOfPosition;
 import com.example.cntgfy.radiacia.Determinant.Position.DeterminantOfPositionByStartAndroid;
-import Radiacia.game.GameObject;
+
+import Radiacia.server.client.ClientGamer;
 
 /**
  * Created by Cntgfy on 05.07.2016.
@@ -15,23 +16,37 @@ import Radiacia.game.GameObject;
  * использует объект класса Activity для получения информации о положении в пространстве
  */
 public class AttitudeUpdater implements InActivityUsable {
+
     private DeterminantOfPosition detOfPos;
     private DeterminantOfOrientation detOfOrient;
 
     private UpdateThread updateThread;
+    private SendToServerThread sendToServerThread;
 
-    private volatile GameObject gameObject;
+    private volatile ClientGamer cg;
 
     private float goodAccuracy = 20;
 
-    public AttitudeUpdater(Activity activity) {
-        gameObject = new GameObject();
-        detOfPos = new DeterminantOfPositionByStartAndroid(activity);
-        detOfOrient = new DeterminantOfOrientationByStartAndroid(activity);
+    private int fps;
+
+    public AttitudeUpdater(MainActivity activity, SendToServerThread sendToServerThread) {
+        this(activity, (ClientGamer)null);
+
+        this.sendToServerThread = sendToServerThread;
     }
 
-    public AttitudeUpdater(GameObject gameObject, Activity activity) {
-        this.gameObject = gameObject;
+    public AttitudeUpdater(MainActivity activity, ClientGamer cg) {
+        this(activity, cg, 1);
+    }
+
+    public AttitudeUpdater(MainActivity activity, int fps) {
+        this(activity, null, fps);
+    }
+
+    public AttitudeUpdater(MainActivity activity, ClientGamer cg, int fps) {
+        this.cg = cg;
+
+        this.fps = fps;
         detOfPos = new DeterminantOfPositionByStartAndroid(activity);
         detOfOrient = new DeterminantOfOrientationByStartAndroid(activity);
     }
@@ -44,20 +59,31 @@ public class AttitudeUpdater implements InActivityUsable {
 
             while (!isCancelled()) {
                 synchronized (this) {
-                    if (gameObject == null) continue;
+                    if (cg == null) continue;
 
-                    gameObject.setDirection(direction(detOfOrient.getDeviceOrientation()));
+                    sendToServerThread.add(new Runnable() {
+                        @Override
+                        public void run() {
+                            cg.setDirection(direction(detOfOrient.getDeviceOrientation()));
 
-                    if (detOfPos.getAccuracy() < goodAccuracy) {
-                        gameObject.setLatitude(detOfPos.getLatitude());
-                        gameObject.setLongitude(detOfPos.getLongitude());
-                    }
+                            if (detOfPos.getAccuracy() < goodAccuracy) {
+                                cg.setLatitude(detOfPos.getLatitude());
+                                cg.setLongitude(detOfPos.getLongitude());
+                            }
+
+                            cg.writeSelf();
+                            //System.out.println("write self: " + cg);
+                        }
+                    });
+
+
                     //debug.printDebugLog("UpdateAsyncTask set attitude");
                 }
                 try {
-                    Thread.sleep(150);
+                    Thread.sleep(1000 / fps);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
+                    break;
                 }
             }
         }
@@ -100,12 +126,12 @@ public class AttitudeUpdater implements InActivityUsable {
         return rotationVector;
     }*/
 
-    public synchronized void setGameObject(GameObject gameObject) {
-        this.gameObject = gameObject;
+    public void setClientGamer(ClientGamer cg) {
+        this.cg = cg;
     }
 
-    public GameObject getGameObject() {
-        return gameObject;
+    public ClientGamer getClientGamer() {
+        return cg;
     }
 
     @Override

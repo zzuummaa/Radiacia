@@ -1,17 +1,18 @@
 package com.example.cntgfy.radiacia;
 
-import java.io.IOException;
-import java.net.Socket;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.Exchanger;
-
 import android.app.Activity;
+import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import Radiacia.data.ConnectData;
 import Radiacia.server.client.Client;
@@ -33,6 +34,8 @@ public class MainActivity extends Activity {
     volatile ConnectData conD;
     volatile ConnectThread cth;
 
+    SendToServerThread sendToServerThread;
+
     volatile ClientGamer cg;
 
     Timer timer = new Timer();
@@ -42,6 +45,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_main);
         clientStatusTV = (TextView) findViewById(R.id.clientStatusTV);
         gamerInfoTV = (TextView) findViewById(R.id.gamerInfoTV);
@@ -50,7 +54,9 @@ public class MainActivity extends Activity {
         connectButton = (Button) findViewById(R.id.connectButton);
         ipEditText = (EditText) findViewById(R.id.ipEditText);
 
-        attitudeUpdater = new AttitudeUpdater(this);
+        sendToServerThread = new SendToServerThread();
+
+        attitudeUpdater = new AttitudeUpdater(this, sendToServerThread);
 
         conD = new ConnectData();
         conD.setId(0);
@@ -61,19 +67,25 @@ public class MainActivity extends Activity {
     }
 
     public void onClickShootButton(View v) {
-        if (cg != null) cg.setIsShoot(true);
+        synchronized (cg) {
+            sendToServerThread.add(new Runnable() {
+                @Override
+                public void run() {
+                    cg.setIsShoot(true);
+                }
+            });
+        }
     }
 
     public void onClickDisconnectButton(View v) {
         clientDisconnect();
-        clientConnectStatus = STATUS_DISCONNECTED;
     }
 
     @Override
     protected void onResume() {
         super.onResume();
         attitudeUpdater.onResume();
-        clientConnect();
+        //clientConnect();
 
         timer = new Timer();
         TimerTask task = new TimerTask() {
@@ -86,7 +98,7 @@ public class MainActivity extends Activity {
                         if (cg != null) {
                             gamerInfoTV.setText("Gamer info: " + cg);
                         } else {
-                            gamerInfoTV.setText("Gamer info: " + attitudeUpdater.getGameObject());
+                            gamerInfoTV.setText("Gamer info: " + attitudeUpdater.getClientGamer());
                         }
                         //attitudeUpdater.getDetOfOrient().showInfo(gamerInfoTV);
                         attitudeUpdater.getDetOfPos().showLocation(attitudeInfoTV);
@@ -116,6 +128,11 @@ public class MainActivity extends Activity {
     private void clientDisconnect() {
         if (cth != null) {
             cth.interrupt();
+            cth = null;
+        }
+
+        if (attitudeUpdater.getClientGamer() != null) {
+            attitudeUpdater.setClientGamer(null);
         }
 
         if (cg != null) {
@@ -132,10 +149,11 @@ public class MainActivity extends Activity {
             }
             gc = null;
         }
+
+        clientConnectStatus = STATUS_DISCONNECTED;
     }
 
     private String ip = "192.168.1.5";
-    private volatile boolean isBlocked = false;
 
     private String clientConnectStatus = STATUS_DISCONNECTED;
     private static final String STATUS_DISCONNECTED = "disconnected";
@@ -144,56 +162,59 @@ public class MainActivity extends Activity {
     private static final String STATUS_UNKNOWN_HOST = "unknown host";
 
     class ConnectThread extends Thread {
-        private Socket socket;
+        private volatile Socket socket;
 
         public ConnectThread() {
             super("ConnectThread");
-            synchronized (this) {
-                if (!isBlocked) {
-                    isBlocked = true;
-                    start();
-                }
-            }
+            start();
         }
 
         @Override
         public void run() {
-            clientConnectStatus = STATUS_TRYING_TO_CONNECT;
-
             try {
-                if (gc == null && cg == null) {
-                    ip = ipEditText.getText().toString();
+                clientConnectStatus = STATUS_TRYING_TO_CONNECT;
 
-                    socket = new Socket(ip, 9090);
-                    Client client = new SocketClient(socket);
+                connect();
 
-                    gc = new GameClient(client, conD.getId());
-                    gc.connect();
-
-                    cg = new ClientGamer(gc);
-                    attitudeUpdater.setGameObject(cg);
-                }
+                clientConnectStatus = STATUS_CONNECTED;
             } catch (IOException e) {
                 if (!isInterrupted()) {
                     e.printStackTrace();
-                    clientConnectStatus = STATUS_UNKNOWN_HOST;
-                    interrupt();
                 }
             } catch (Exception e) {
                 e.printStackTrace();
-                interrupt();
             } finally {
-                cth = null;
-                isBlocked = false;
-                clientConnectStatus = isInterrupted() ? STATUS_DISCONNECTED : STATUS_CONNECTED;
+                if (cth == this && clientConnectStatus == STATUS_TRYING_TO_CONNECT) clientConnectStatus = STATUS_DISCONNECTED;
+                System.out.println("End connect thread with status: " + clientConnectStatus);
+            }
+        }
+
+        private void connect() throws Exception {
+            if (gc == null && cg == null) {
+                ip = ipEditText.getText().toString();
+
+                socket = new Socket();
+                socket.connect(new InetSocketAddress(ip, 9090));
+
+                if (isInterrupted()) return;
+
+                Client client = new SocketClient(socket);
+                socket = null;
+
+                gc = new GameClient(client, conD.getId());
+                gc.connect();
+
+                cg = new ClientGamer(gc);
+                cg.setName("Test");
+                attitudeUpdater.setClientGamer(cg);
             }
         }
 
         @Override
         public void interrupt() {
             super.interrupt();
-            try {
-                if (socket != null) socket.close();
+            if (socket != null) try {
+                socket.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }

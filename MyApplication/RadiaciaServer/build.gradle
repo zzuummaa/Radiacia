@@ -1,5 +1,0 @@
-configurations.maybeCreate("default")
-artifacts.add("default", file('RadiaciaServer.jar'))
-dependencies {
-    compile files('RadiaciaServer.jar')
-}
