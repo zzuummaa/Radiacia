@@ -7,8 +7,7 @@ import com.example.cntgfy.radiacia.Determinant.Orientation.DeterminantOfOrientat
 import com.example.cntgfy.radiacia.Determinant.Orientation.DeterminantOfOrientationByStartAndroid;
 import com.example.cntgfy.radiacia.Determinant.Position.DeterminantOfPosition;
 import com.example.cntgfy.radiacia.Determinant.Position.DeterminantOfPositionByStartAndroid;
-import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Debug.Debug;
-import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Game.GameObject;
+import Radiacia.game.GameObject;
 
 /**
  * Created by Cntgfy on 05.07.2016.
@@ -21,9 +20,8 @@ public class AttitudeUpdater implements InActivityUsable {
 
     private UpdateThread updateThread;
 
-    private GameObject gameObject;
+    private volatile GameObject gameObject;
 
-    private Debug debug = new Debug("ATTITUDE_UPDATER", 0);
     private float goodAccuracy = 20;
 
     public AttitudeUpdater(Activity activity) {
@@ -43,25 +41,25 @@ public class AttitudeUpdater implements InActivityUsable {
 
         @Override
         public void run() {
-            debug.printDebugLog("UpdateThread started");
 
             while (!isCancelled()) {
-                if (gameObject == null) continue;
+                synchronized (this) {
+                    if (gameObject == null) continue;
 
-                gameObject.setDirection(direction(detOfOrient.getDeviceOrientation()));
+                    gameObject.setDirection(direction(detOfOrient.getDeviceOrientation()));
 
-                if (detOfPos.getAccuracy() < goodAccuracy) {
-                    gameObject.setLatitude(detOfPos.getLatitude());
-                    gameObject.setLongitude(detOfPos.getLongitude());
+                    if (detOfPos.getAccuracy() < goodAccuracy) {
+                        gameObject.setLatitude(detOfPos.getLatitude());
+                        gameObject.setLongitude(detOfPos.getLongitude());
+                    }
+                    //debug.printDebugLog("UpdateAsyncTask set attitude");
                 }
-                //debug.printDebugLog("UpdateAsyncTask set attitude");
                 try {
                     Thread.sleep(150);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-            debug.printDebugLog("UpdateAsyncTask is cancelled");
         }
 
         public boolean isCancelled() {
@@ -102,7 +100,7 @@ public class AttitudeUpdater implements InActivityUsable {
         return rotationVector;
     }*/
 
-    public void setGameObject(GameObject gameObject) {
+    public synchronized void setGameObject(GameObject gameObject) {
         this.gameObject = gameObject;
     }
 
@@ -118,7 +116,6 @@ public class AttitudeUpdater implements InActivityUsable {
         updateThread = new UpdateThread();
         updateThread.start();
 
-        debug.printDebugLog("onResume");
     }
 
     @Override
@@ -128,7 +125,6 @@ public class AttitudeUpdater implements InActivityUsable {
         detOfPos.onPause();
         detOfOrient.onPause();
 
-        debug.printDebugLog("onPause");
     }
 
     public DeterminantOfPosition getDetOfPos() {

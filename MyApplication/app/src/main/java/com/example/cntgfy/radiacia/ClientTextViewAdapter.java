@@ -2,21 +2,20 @@ package com.example.cntgfy.radiacia;
 
 import android.widget.TextView;
 
-import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Client.Client;
-import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Client.ClientGame;
-import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Game.Gamer;
-
 import org.w3c.dom.Text;
 
 import java.io.IOException;
 import java.net.Socket;
+
+import Radiacia.server.client.Client;
+import Radiacia.server.client.GameClient;
 
 /**
  * Created by Cntgfy on 21.07.2016.
  *
  * Позволяет записывать данные из ClientGame в текстовое поле
  */
-public class ClientTextViewAdapter extends ClientGame {
+public class ClientTextViewAdapter extends GameClient {
     private static final String STATUS_DISCONNECTED = "Client status: disconnected";
     private static final String STATUS_TRYING_TO_CONNECT = "Client status: trying to connect";
     private static final String STATUS_CONNECTED = "Client status: connected";
@@ -24,7 +23,11 @@ public class ClientTextViewAdapter extends ClientGame {
 
     private TextView textView;
 
-    public ClientTextViewAdapter(Socket socket, String debugName) throws IOException {
+    public ClientTextViewAdapter(Client client) {
+        super(client);
+    }
+
+    /*public ClientTextViewAdapter(Socket socket, String debugName) throws IOException {
         super(socket, debugName);
     }
 
@@ -43,7 +46,7 @@ public class ClientTextViewAdapter extends ClientGame {
         if (textView != null) {
             textView.setText(STATUS_DISCONNECTED);
         }
-    }
+    }*/
 
 
 }

@@ -10,8 +10,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.widget.TextView;
 
-import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Debug.Debug;
-
 import java.util.Date;
 
 /**
@@ -31,7 +29,7 @@ public class DeterminantOfPositionByStartAndroid implements DeterminantOfPositio
     //Последние полученные значения
     private Location lastLocation;
 
-    Debug debug = new Debug("DETERMINANT_OF_POSITION", 1000);
+    //Debug debug = new Debug("DETERMINANT_OF_POSITION", 1000);
 
     public DeterminantOfPositionByStartAndroid(Activity activity) {
         this.activity = activity;

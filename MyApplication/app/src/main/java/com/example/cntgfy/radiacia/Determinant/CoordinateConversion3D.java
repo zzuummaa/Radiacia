@@ -1,7 +1,5 @@
 package com.example.cntgfy.radiacia.Determinant;
 
-import com.example.cntgfy.radiacia.SocketAPI.Radiacia.Main_Server;
-
 /**
  * Created by Cntgfy on 10.07.2016.
  */
